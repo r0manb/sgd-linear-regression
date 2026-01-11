@@ -36,7 +36,7 @@ class SGDLinearRegression:
         y = np.asarray(y)
 
         if (self._weights is None) or (self._weights.shape[0] != X.shape[1]):
-            self._weights = self._rng.random(size=X.shape[1])
+            self._weights = self._rng.normal(scale=0.01, size=X.shape[1])
 
         n = X.shape[0]
         batch_size = n if self._batch_size is None else self._batch_size
@@ -50,7 +50,7 @@ class SGDLinearRegression:
                 X_batch = X[batch_idxs]
                 y_batch = y[batch_idxs]
 
-                preds = self.predict(X_batch)
+                preds = X_batch @ self._weights
                 errors = preds - y_batch
                 grad = (2 / len(X_batch)) * (X_batch.T @ errors)
 
