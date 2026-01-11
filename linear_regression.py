@@ -12,7 +12,7 @@ class SGDLinearRegression:
     _shuffle: bool
     _epochs: int
     _rng: Generator
-    _weights: np.ndarray | None
+    _weights: NDArray | None
 
     def __init__(
         self,
@@ -32,7 +32,7 @@ class SGDLinearRegression:
         )
 
     def fit(self, X: ArrayLike, y: ArrayLike) -> None:
-        X = np.asarray(X)
+        X = self._add_bias_feature(np.asarray(X))
         y = np.asarray(y)
 
         if (self._weights is None) or (self._weights.shape[0] != X.shape[1]):
@@ -60,4 +60,13 @@ class SGDLinearRegression:
         if self._weights is None:
             raise ValueError("Модель не была обучена. Для начала вызовите fit()")
 
-        return np.dot(X, self._weights)
+        X = self._add_bias_feature(np.asarray(X))
+        return X @ self._weights
+
+    def _add_bias_feature(self, X: NDArray) -> NDArray:
+        feature = np.ones(X.shape[0])
+        return np.insert(X, 0, feature, axis=1)
+
+    @property
+    def weights(self) -> NDArray:
+        return self._weights.copy()
