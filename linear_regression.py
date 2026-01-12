@@ -7,12 +7,14 @@ _rng = np.random.default_rng()
 
 
 class SGDLinearRegression:
+    _epochs: int
     _batch_size: int | None
     _lr: float
     _shuffle: bool
-    _epochs: int
-    _rng: Generator
+    _verbose: bool
     _weights: NDArray | None
+    _loss_history: list[float]
+    _rng: Generator
 
     def __init__(
         self,
@@ -21,12 +23,16 @@ class SGDLinearRegression:
         lr: float = 0.001,
         shuffle: bool = True,
         random_state: int | None = None,
+        verbose: bool = True,
     ) -> None:
         self._epochs = epochs
         self._batch_size = batch_size
         self._lr = lr
         self._shuffle = shuffle
+        self._verbose = verbose
+
         self._weights = None
+        self._loss_history = []
         self._rng = (
             _rng if random_state is None else np.random.default_rng(seed=random_state)
         )
@@ -50,17 +56,29 @@ class SGDLinearRegression:
                 X_batch = X[batch_idxs]
                 y_batch = y[batch_idxs]
 
-                preds = X_batch @ self._weights
-                errors = preds - y_batch
-                grad = (2 / len(X_batch)) * (X_batch.T @ errors)
-
+                preds = self._predict(X_batch)
+                grad = self._grad(X_batch, y_batch, preds)
                 self._weights -= self._lr * grad
 
+            loss = self._loss(X, y)
+            self._loss_history.append(loss)
+            if self._verbose:
+                print(f"Epoch {epoch + 1}/{self._epochs} - loss: {loss:.6f}")
+
+    def _grad(self, X: NDArray, y_true: NDArray, y_pred: NDArray) -> NDArray:
+        errors = y_pred - y_true
+        return (2 / len(X)) * (X.T @ errors)
+
+    def _loss(self, X: NDArray, y: NDArray) -> float:
+        return np.mean((self._predict(X) - y) ** 2)
+
     def predict(self, X: ArrayLike) -> NDArray:
-        if self._weights is None:
-            raise ValueError("Модель не была обучена. Для начала вызовите fit()")
+        self._check_fitted()
 
         X = self._add_bias_feature(np.asarray(X))
+        return self._predict(X)
+
+    def _predict(self, X: NDArray) -> NDArray:
         return X @ self._weights
 
     def _add_bias_feature(self, X: NDArray) -> NDArray:
@@ -69,4 +87,20 @@ class SGDLinearRegression:
 
     @property
     def weights(self) -> NDArray:
-        return self._weights.copy()
+        self._check_fitted()
+
+        return self._weights[1:].copy()
+
+    @property
+    def bias(self) -> float:
+        self._check_fitted()
+
+        return self._weights[0]
+
+    @property
+    def loss_history(self) -> list[float]:
+        return self._loss_history.copy()
+
+    def _check_fitted(self) -> None:
+        if self._weights is None:
+            raise ValueError("Модель не была обучена. Для начала вызовите fit()")
