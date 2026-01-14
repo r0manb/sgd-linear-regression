@@ -125,7 +125,7 @@ class SGDLinearRegression:
         grad = np.zeros_like(self._weights)
 
         grad[1:] = self._alpha * (
-            self._l1_ratio * np.size(w) + (1 - self._l1_ratio) * 2 * w
+            self._l1_ratio * np.sign(w) + (1 - self._l1_ratio) * 2 * w
         )
 
         return grad
