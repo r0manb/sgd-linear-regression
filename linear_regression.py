@@ -16,7 +16,7 @@ class SGDLinearRegression:
     _verbose: bool
     _weights: NDArray | None
     _loss_history: list[float]
-    _mse_history: list[float]
+    _base_loss_history: list[float]
     _rng: Generator
 
     def __init__(
@@ -40,7 +40,7 @@ class SGDLinearRegression:
 
         self._weights = None
         self._loss_history = []
-        self._mse_history = []
+        self._base_loss_history = []
         self._rng = (
             _rng if random_state is None else np.random.default_rng(seed=random_state)
         )
@@ -96,13 +96,11 @@ class SGDLinearRegression:
                 self._weights -= self._lr * grad
 
             loss = self._loss(X, y)
-            mse = self._mse(X, y)
+            mse = self._base_loss(X, y)
             self._loss_history.append(loss)
-            self._mse_history.append(mse)
+            self._base_loss_history.append(mse)
             if self._verbose:
-                print(
-                    f"Epoch {epoch + 1}/{self._epochs} - loss: {loss:.6f}, mse: {mse}"
-                )
+                self._log_epoch(epoch, loss, mse)
 
     def predict(self, X: ArrayLike) -> NDArray:
         self._check_fitted()
@@ -111,13 +109,13 @@ class SGDLinearRegression:
         return self._predict(X)
 
     def _loss_grad(self, X: NDArray, y_true: NDArray, y_pred: NDArray) -> NDArray:
-        grad = self._mse_grad(X, y_true, y_pred)
+        grad = self._base_loss_grad(X, y_true, y_pred)
         if self._alpha > 0:
             grad += self._reg_grad()
 
         return grad
 
-    def _mse_grad(self, X: NDArray, y_true: NDArray, y_pred: NDArray) -> NDArray:
+    def _base_loss_grad(self, X: NDArray, y_true: NDArray, y_pred: NDArray) -> NDArray:
         errors = y_pred - y_true
         grad = (2 / len(X)) * (X.T @ errors)
         return grad
@@ -133,13 +131,13 @@ class SGDLinearRegression:
         return grad
 
     def _loss(self, X: NDArray, y: NDArray) -> float:
-        loss = self._mse(X, y)
+        loss = self._base_loss(X, y)
         if self._alpha > 0:
             loss += self._reg()
 
         return loss
 
-    def _mse(self, X: NDArray, y: NDArray) -> float:
+    def _base_loss(self, X: NDArray, y: NDArray) -> float:
         return np.mean((self._predict(X) - y) ** 2)
 
     def _reg(self) -> float:
@@ -155,6 +153,9 @@ class SGDLinearRegression:
     def _add_bias_feature(self, X: NDArray) -> NDArray:
         feature = np.ones(X.shape[0])
         return np.insert(X, 0, feature, axis=1)
+
+    def _log_epoch(self, epoch: int, loss: float, base_loss: float) -> None:
+        print(f"Epoch {epoch + 1}/{self._epochs} - loss: {loss:.6f}, mse: {base_loss}")
 
     @property
     def weights(self) -> NDArray:
@@ -173,8 +174,8 @@ class SGDLinearRegression:
         return self._loss_history.copy()
 
     @property
-    def mse_history(self) -> list[float]:
-        return self._mse_history.copy()
+    def base_loss_history(self) -> list[float]:
+        return self._base_loss_history.copy()
 
     def _check_fitted(self) -> None:
         if self._weights is None:
